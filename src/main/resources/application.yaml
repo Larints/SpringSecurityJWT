@@ -1,3 +1,10 @@
+server:
+  port: 8443
+  ssl:
+    key-store: classpath:keystore.p12
+    key-store-password: 12345678
+    key-store-type: PKCS12
+    key-alias: mycert
 spring:
   application:
     name: SpringSecurityJWT

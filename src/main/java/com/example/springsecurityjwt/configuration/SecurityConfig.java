@@ -20,6 +20,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
 @AllArgsConstructor
@@ -28,6 +30,8 @@ public class SecurityConfig {
     private final OurUserDetailedService ourUserDetailedService;
 
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    private final LoggingFilter loggingFilter;
 
 
     /**
@@ -39,19 +43,23 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.csrf(AbstractHttpConfigurer::disable) // Отключение CSRF защиты
-                .cors(Customizer.withDefaults()) // Включение CORS с настройками по умолчанию
-                .authorizeHttpRequests(request -> request.requestMatchers("/authentication/**", "/public/**").permitAll()
+        httpSecurity
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(withDefaults())
+                .authorizeHttpRequests(request -> request
+                        .requestMatchers("/authentication/**", "/public/**").permitAll()
                         .requestMatchers("/admin/**").hasAnyAuthority("ADMIN")
                         .requestMatchers("/user/**").hasAnyAuthority("USER")
                         .requestMatchers("/adminuser/**").hasAnyAuthority("USER", "ADMIN")
                         .anyRequest().authenticated())
                 .sessionManagement(manager -> manager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider()).addFilterBefore( //Установка AuthenticationProvider
-                        jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class // Добавление фильтра J
-                        // WT аутентификации перед стандартным фильтром аутентификации
-                );
-        return httpSecurity.build(); // Построение и возврат объекта SecurityFilterChain
+                .httpBasic(withDefaults()) // Использование базовой аутентификации (опционально)
+                .requiresChannel(channel -> channel
+                        .requestMatchers(r -> true).requiresSecure()) // Перенаправление HTTP на HTTPS
+                .addFilterBefore(loggingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return httpSecurity.build();
     }
 
 
